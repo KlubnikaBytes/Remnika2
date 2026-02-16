@@ -2,19 +2,22 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { LayoutGrid, Send, Users, History, Settings, Bell } from 'lucide-react'
+import { useRouter, usePathname } from 'next/navigation'
+import { LayoutGrid, Send, Users, History, Settings, Bell, LogOut } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/language-context'
+import { authService } from '@/lib/auth'
 
 export function MainNav() {
     const pathname = usePathname()
     const { t } = useLanguage()
+    const router = useRouter()
 
-    // Hide nav on public routes
-    // Public routes check removed as this component is now only used in dashboard layout
-
+    const handleLogout = async () => {
+        await authService.logout()
+        router.push('/login')
+    }
 
     const navItems = [
         { name: t('nav.home'), href: '/dashboard', icon: LayoutGrid },
@@ -65,7 +68,7 @@ export function MainNav() {
                                     })}
                                 </ul>
                             </li>
-                            <li className="mt-auto">
+                            <li className="mt-auto space-y-1">
                                 <Link
                                     href="/notifications"
                                     className={cn(
@@ -84,6 +87,20 @@ export function MainNav() {
                                     />
                                     {t('nav.notifications')}
                                 </Link>
+
+                                <button
+                                    onClick={handleLogout}
+                                    className={cn(
+                                        'text-gray-700 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400',
+                                        'group flex w-full gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 transition-all'
+                                    )}
+                                >
+                                    <LogOut
+                                        className="h-6 w-6 shrink-0 text-gray-400 group-hover:text-red-600 dark:text-gray-400 dark:group-hover:text-red-400"
+                                        aria-hidden="true"
+                                    />
+                                    Logout
+                                </button>
                             </li>
                         </ul>
                     </nav>
@@ -116,6 +133,15 @@ export function MainNav() {
                             </Link>
                         )
                     })}
+                    <button
+                        onClick={handleLogout}
+                        className="flex flex-col items-center gap-1 rounded-xl p-2 transition-all text-gray-500 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400"
+                    >
+                        <div className="rounded-full p-1 transition-all">
+                            <LogOut className="h-6 w-6" />
+                        </div>
+                        <span className="text-[10px] font-medium">Logout</span>
+                    </button>
                 </nav>
             </div>
         </>

@@ -29,6 +29,7 @@ interface Quote {
 }
 
 import { useExchangeRates } from '@/hooks/use-exchange-rates'
+import { useWalletBalances } from '@/hooks/use-wallet';
 
 // ... imports remain the same
 
@@ -40,6 +41,8 @@ export default function SendMoneyPage() {
         targetCountry, setTargetCountry,
         quote, setQuote
     } = useSendMoneyStore()
+
+    const { data: balances } = useWalletBalances();
 
     const [currentStep, setCurrentStep] = useState(1)
     const [isLoadingQuote, setIsLoadingQuote] = useState(false)
@@ -62,14 +65,30 @@ export default function SendMoneyPage() {
         }
 
         setIsLoadingQuote(true)
+
+        // Check balance
+        const sourceWallet = balances?.find(b => b.currency === sourceCountry.currency) || balances?.[0];
+        if (sourceWallet) {
+            const amountNum = parseFloat(amount);
+            if (amountNum > sourceWallet.amount) {
+                // Delay slightly to confirm
+                setTimeout(() => {
+                    setQuote(null);
+                    setIsLoadingQuote(false);
+                    // Optional: You could set a specific error state here to show "Insufficient Balance" in UI
+                    console.warn("Insufficient funds");
+                }, 200);
+                return;
+            }
+        }
         // Simulate calculation delay for UX
         const timer = setTimeout(() => {
             const sourceAmt = parseFloat(amount)
             // Use real-time rate
             const rate = rates[targetCountry.currency] || 1
-            const transferFee = sourceAmt * 0.01 // 1% fee
-            const serviceFee = 2.99
-            const totalFees = transferFee + serviceFee
+            const transferFee = sourceAmt * 0.01 // 1% transfer fee
+            const serviceFee = sourceAmt * 0.01 // 1% service fee (percentage-based)
+            const totalFees = transferFee + serviceFee // Total: 2%
             const targetAmt = (sourceAmt - totalFees) * rate
 
             setQuote({
@@ -471,7 +490,7 @@ export default function SendMoneyPage() {
                                             </div>
 
                                             <div className="flex justify-between text-sm">
-                                                <span className="text-gray-600 dark:text-gray-400">Service fee</span>
+                                                <span className="text-gray-600 dark:text-gray-400">Service fee (1%)</span>
                                                 <span className="font-semibold text-gray-900 dark:text-white">
                                                     - {sourceCountry.symbol}
                                                     {quote.fees.serviceFee.toFixed(2)}

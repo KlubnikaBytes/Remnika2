@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { CreditCard, Building, Wallet, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { WalletBalance } from '@/hooks/use-wallet'
+import { useInitiatePayment, useVerifyPayment } from '@/hooks/use-payments'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface AddMoneyModalProps {
     isOpen: boolean
@@ -20,17 +22,41 @@ export function AddMoneyModal({ isOpen, onClose, currentBalance }: AddMoneyModal
     const [isLoading, setIsLoading] = useState(false)
     const [success, setSuccess] = useState(false)
 
-    const handleAddMoney = () => {
-        setIsLoading(true)
-        setTimeout(() => {
-            setIsLoading(false)
-            setSuccess(true)
+    const initiatePaymentMutation = useInitiatePayment();
+    const verifyPaymentMutation = useVerifyPayment();
+    const queryClient = useQueryClient();
+
+    const handleAddMoney = async () => {
+        if (!amount) return;
+        setIsLoading(true);
+        try {
+            // 1. Initiate Payment
+            const initiation = await initiatePaymentMutation.mutateAsync(parseFloat(amount));
+            console.log("Payment Initiated:", initiation);
+
+            // 2. Simulate User Payment on Gateway (Mock delay)
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // 3. Verify and Update Wallet
+            await verifyPaymentMutation.mutateAsync({
+                paymentId: initiation.gatewayOrderId,
+                amount: amount
+            });
+
+            // 4. Success
+            queryClient.invalidateQueries({ queryKey: ['wallet-balances'] });
+            setSuccess(true);
             setTimeout(() => {
-                setSuccess(false)
-                setAmount('')
-                onClose()
-            }, 2000)
-        }, 1500)
+                setSuccess(false);
+                setAmount('');
+                onClose();
+            }, 2000);
+        } catch (error) {
+            console.error("Payment failed", error);
+            // Handle error state (e.g. show toast)
+        } finally {
+            setIsLoading(false);
+        }
     }
 
     return (

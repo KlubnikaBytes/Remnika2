@@ -11,20 +11,42 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CountrySelector, COUNTRIES } from '@/components/ui/country-selector'
+import { useCreateRecipient } from '@/hooks/use-recipients'
 
 export default function AddRecipientPage() {
     const router = useRouter()
-    const [isLoading, setIsLoading] = useState(false)
+    const createRecipientMutation = useCreateRecipient()
     const [country, setCountry] = useState(COUNTRIES[0])
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // Form States
+    const [fullName, setFullName] = useState('')
+    const [bankName, setBankName] = useState('')
+    const [accountNumber, setAccountNumber] = useState('')
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setIsLoading(true)
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false)
+
+        // Split name
+        const names = fullName.trim().split(' ')
+        const firstName = names[0]
+        const lastName = names.slice(1).join(' ') || ''
+
+        try {
+            await createRecipientMutation.mutateAsync({
+                firstName,
+                lastName,
+                country: country.name, // Ensure this matches backend expectation
+                bankName,
+                accountNumber,
+                currency: 'USD', // Default or derive from country
+            } as any) // Type assertion if needed for Omit mismatch
+
+            // Success
             router.push('/recipients')
-        }, 1500)
+        } catch (error) {
+            console.error("Failed to add recipient", error)
+            // Error handling UI
+        }
     }
 
     return (
@@ -59,7 +81,12 @@ export default function AddRecipientPage() {
                             <CardContent className="space-y-6 p-6">
                                 <div className="space-y-2">
                                     <Label>Full Name</Label>
-                                    <Input placeholder="e.g. John Doe" required />
+                                    <Input
+                                        placeholder="e.g. John Doe"
+                                        required
+                                        value={fullName}
+                                        onChange={(e) => setFullName(e.target.value)}
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
@@ -71,13 +98,27 @@ export default function AddRecipientPage() {
                                     <Label>Bank Name</Label>
                                     <div className="relative">
                                         <Building className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                                        <Input className="pl-9" placeholder="Select Bank" required />
+                                        <Input
+                                            className="pl-9"
+                                            placeholder="Select Bank"
+                                            required
+                                            value={bankName}
+                                            onChange={(e) => setBankName(e.target.value)}
+                                        />
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
                                     <Label>Account Number / IBAN</Label>
-                                    <Input placeholder="Enter account number" required />
+                                    <Input
+                                        placeholder="Enter account number"
+                                        required
+                                        value={accountNumber}
+                                        onChange={(e) => setAccountNumber(e.target.value)}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        {country.name === 'United States' ? 'Format: 7-12 digits' : 'Enter local bank account number'}
+                                    </p>
                                 </div>
 
                                 <div className="space-y-2">
@@ -92,9 +133,9 @@ export default function AddRecipientPage() {
                                     <Button
                                         type="submit"
                                         className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 py-6 text-lg font-semibold hover:shadow-lg"
-                                        disabled={isLoading}
+                                        disabled={createRecipientMutation.isPending}
                                     >
-                                        {isLoading ? (
+                                        {createRecipientMutation.isPending ? (
                                             <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
                                         ) : (
                                             <span className="flex items-center gap-2">

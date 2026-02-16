@@ -8,6 +8,6 @@ import java.util.UUID;
 
 @Repository
 public interface RecipientRepository extends JpaRepository<Recipient, UUID> {
-    // This handles D3 Store queries
+    // Fetches all recipients belonging to a specific user
     List<Recipient> findByUserId(UUID userId);
 }

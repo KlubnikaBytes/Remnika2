@@ -14,7 +14,7 @@ public class Recipient {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    // Links recipient to the User who created it
+    // Links recipient to the User
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
@@ -22,7 +22,7 @@ public class Recipient {
 
     private String firstName;
     private String lastName;
-    private String country;     // Part of Process 1.3.2 validation
-    private String bankName;    // Part of Process 1.3.2 validation
+    private String country;     // For Process 1.3.2 validation
+    private String bankName;    // For Process 1.3.2 validation
     private String accountNumber;
 }

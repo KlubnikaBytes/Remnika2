@@ -11,6 +11,7 @@ import { useWalletBalances } from '@/hooks/use-wallet'
 import { cn } from '@/lib/utils'
 import { CurrencyConversionModal } from '@/components/wallet/currency-conversion-modal'
 import { AddMoneyModal } from '@/components/wallet/add-money-modal'
+import { InjectWalletInit } from '@/components/wallet/inject-wallet-init'
 
 export function MultiCurrencyWallet() {
     const { data: balances, isLoading } = useWalletBalances()
@@ -31,7 +32,7 @@ export function MultiCurrencyWallet() {
         setCurrentIndex((prev) => (prev - 1 + balances.length) % balances.length)
     }
 
-    if (isLoading || !balances) {
+    if (isLoading) {
         return (
             <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-[#c00101] to-[#8f0101] shadow-2xl shadow-[#c00101]/20">
                 <CardContent className="p-8">
@@ -41,6 +42,10 @@ export function MultiCurrencyWallet() {
                 </CardContent>
             </Card>
         )
+    }
+
+    if (!balances || balances.length === 0) {
+        return <InjectWalletInit />;
     }
 
     const currentBalance = balances[currentIndex]
@@ -59,6 +64,9 @@ export function MultiCurrencyWallet() {
                             <span className="text-2xl">{currentBalance.flag}</span>
                             <span className="text-sm font-semibold opacity-90">{currentBalance.currency} Wallet</span>
                         </div>
+                        {currentBalance.accountNumber && (
+                            <p className="text-xs text-white/70 mt-1">Acc: {currentBalance.accountNumber}</p>
+                        )}
                     </div>
                     <Button
                         size="icon"

@@ -5,53 +5,99 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowLeft, User, ChevronRight, Check, Plus, Search } from 'lucide-react'
+import { ArrowLeft, User, ChevronRight, Check, Plus, Search, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { useSendMoneyStore } from '@/hooks/use-send-money-store'
+import { recipientService, Recipient } from '@/lib/services/recipient'
 
 export default function RecipientPage() {
     const router = useRouter()
-    const { quote, setRecipient } = useSendMoneyStore()
+    const { quote, setRecipient, targetCountry } = useSendMoneyStore()
     const [searchQuery, setSearchQuery] = useState('')
     const [isAddingRecipient, setIsAddingRecipient] = useState(false)
     const [newRecipientName, setNewRecipientName] = useState('')
     const [newRecipientBank, setNewRecipientBank] = useState('')
     const [newRecipientAccount, setNewRecipientAccount] = useState('')
 
-    // Mock recipients for selection
-    const [savedRecipients, setSavedRecipients] = useState([
-        { id: 1, name: 'John Doe', country: 'Nigeria 🇳🇬', accountNumber: '****5678', bank: 'GTBank' },
-        { id: 2, name: 'Maria Garcia', country: 'Philippines 🇵🇭', accountNumber: '****9012', bank: 'BDO' },
-        { id: 3, name: 'Sarah Wilson', country: 'Kenya 🇰🇪', accountNumber: '****3456', bank: 'M-Pesa' },
-    ])
+    // API State
+    const [savedRecipients, setSavedRecipients] = useState<Recipient[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
+    // Fetch recipients on mount
+    useEffect(() => {
+        const fetchRecipients = async () => {
+            try {
+                const data = await recipientService.getRecipients()
+                setSavedRecipients(data)
+            } catch (error) {
+                console.error('Failed to fetch recipients', error)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+        fetchRecipients()
+    }, [])
 
     const filteredRecipients = savedRecipients.filter(r =>
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.bank.toLowerCase().includes(searchQuery.toLowerCase())
+        (r.firstName + ' ' + r.lastName).toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.bankName.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    const handleSelectRecipient = (recipient: any) => {
-        setRecipient(recipient)
+    const handleSelectRecipient = (recipient: Recipient) => {
+        // Map backend recipient to store recipient format
+        setRecipient({
+            // Map backend UUID to store ID (cast to any for now as store expects number)
+            id: recipient.id as any,
+            name: `${recipient.firstName} ${recipient.lastName}`,
+            country: recipient.country,
+            accountNumber: recipient.accountNumber,
+            bank: recipient.bankName
+        })
         router.push('/send-money/confirm')
     }
 
-    const handleAddRecipient = () => {
+    const handleAddRecipient = async () => {
         if (!newRecipientName || !newRecipientBank || !newRecipientAccount) return
 
-        const newRecipient = {
-            id: savedRecipients.length + 1,
-            name: newRecipientName,
-            country: 'Unknown 🏳️', // Default for now
-            accountNumber: `****${newRecipientAccount.slice(-4)}`,
-            bank: newRecipientBank
-        }
+        setIsSubmitting(true)
+        try {
+            const nameParts = newRecipientName.trim().split(' ')
+            const firstName = nameParts[0]
+            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''
 
-        setSavedRecipients([newRecipient, ...savedRecipients])
-        handleSelectRecipient(newRecipient)
-        setIsAddingRecipient(false)
+            const newRecipientData = {
+                firstName,
+                lastName: lastName || 'Unknown', // Fallback if single name
+                country: targetCountry?.name || 'Unknown',
+                bankName: newRecipientBank,
+                accountNumber: newRecipientAccount
+            }
+
+            // Call API
+            await recipientService.addRecipient(newRecipientData)
+
+            // Refresh list
+            const data = await recipientService.getRecipients()
+            setSavedRecipients(data)
+
+            // Find the new one (simplified logic: just pick the last one or match details)
+            // For now, just close modal and let user select (or auto select if we can find it)
+            setIsAddingRecipient(false)
+            setNewRecipientName('')
+            setNewRecipientBank('')
+            setNewRecipientAccount('')
+
+            // Ideally auto-select, but list refresh might reorder.
+        } catch (error) {
+            console.error('Failed to add recipient', error)
+            // Show error in UI? current UI has no error state in modal.
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     // Redirect if no quote (user jumped here directly)
@@ -106,34 +152,40 @@ export default function RecipientPage() {
                         <div>
                             <h3 className="mb-4 font-semibold text-gray-500">Recipients</h3>
                             <div className="space-y-3">
-                                <motion.div layout className="space-y-3">
-                                    {filteredRecipients.map((rec) => (
-                                        <motion.div
-                                            key={rec.id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            onClick={() => handleSelectRecipient(rec)}
-                                            className="cursor-pointer overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-950 dark:to-rose-950">
-                                                    <span className="text-lg font-bold text-[#c00101] dark:text-red-400">
-                                                        {rec.name.charAt(0)}
-                                                    </span>
+                                {isLoading ? (
+                                    <div className="flex justify-center p-8">
+                                        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                                    </div>
+                                ) : (
+                                    <motion.div layout className="space-y-3">
+                                        {filteredRecipients.map((rec) => (
+                                            <motion.div
+                                                key={rec.id}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => handleSelectRecipient(rec)}
+                                                className="cursor-pointer overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-950 dark:to-rose-950">
+                                                        <span className="text-lg font-bold text-[#c00101] dark:text-red-400">
+                                                            {rec.firstName.charAt(0)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <h4 className="font-bold text-gray-900 dark:text-white">{rec.firstName} {rec.lastName}</h4>
+                                                        <p className="text-sm text-gray-500">{rec.bankName} •• {rec.accountNumber.slice(-4)}</p>
+                                                    </div>
+                                                    <ChevronRight className="h-5 w-5 text-gray-400" />
                                                 </div>
-                                                <div className="flex-1">
-                                                    <h4 className="font-bold text-gray-900 dark:text-white">{rec.name}</h4>
-                                                    <p className="text-sm text-gray-500">{rec.bank} •• {rec.accountNumber.slice(-4)}</p>
-                                                </div>
-                                                <ChevronRight className="h-5 w-5 text-gray-400" />
-                                            </div>
-                                        </motion.div>
-                                    ))}
-                                </motion.div>
+                                            </motion.div>
+                                        ))}
+                                    </motion.div>
+                                )}
 
-                                {filteredRecipients.length === 0 && (
+                                {!isLoading && filteredRecipients.length === 0 && (
                                     <div className="py-8 text-center text-gray-500">
                                         No recipients found
                                     </div>
@@ -168,6 +220,7 @@ export default function RecipientPage() {
                             placeholder="e.g. John Doe"
                             value={newRecipientName}
                             onChange={(e) => setNewRecipientName(e.target.value)}
+                            disabled={isSubmitting}
                         />
                     </div>
                     <div className="space-y-2">
@@ -176,6 +229,7 @@ export default function RecipientPage() {
                             placeholder="e.g. Chase Bank"
                             value={newRecipientBank}
                             onChange={(e) => setNewRecipientBank(e.target.value)}
+                            disabled={isSubmitting}
                         />
                     </div>
                     <div className="space-y-2">
@@ -184,14 +238,20 @@ export default function RecipientPage() {
                             placeholder="e.g. 1234567890"
                             value={newRecipientAccount}
                             onChange={(e) => setNewRecipientAccount(e.target.value)}
+                            disabled={isSubmitting}
                         />
                     </div>
                     <Button
                         className="w-full bg-[#c00101] hover:bg-[#a00101] mt-4"
                         onClick={handleAddRecipient}
-                        disabled={!newRecipientName || !newRecipientBank || !newRecipientAccount}
+                        disabled={!newRecipientName || !newRecipientBank || !newRecipientAccount || isSubmitting}
                     >
-                        Add & Select
+                        {isSubmitting ? (
+                            <span className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Adding...
+                            </span>
+                        ) : 'Add & Select'}
                     </Button>
                 </div>
             </Modal>

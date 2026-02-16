@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 export default function SupportPage() {
     const faqs = [
         { q: "How long do transfers take?", a: "Most transfers are instant! Bank transfers can take 1-2 business days depending on the destination country." },
-        { q: "What are the fees?", a: "We charge a small 1% transfer fee. There are no hidden fees, and we always show you the total cost upfront." },
+        { q: "What are the fees?", a: "We charge a 2% total fee (1% transfer fee + 1% service fee). There are no hidden fees, and we always show you the total cost upfront." },
         { q: "Is my money safe?", a: "Yes, we use bank-level 256-bit encryption and are fully regulated. Your funds are kept in safeguarded accounts." },
         { q: "How can I verify my identity?", a: "Go to your Settings > Profile to upload your ID document. Verification usually takes less than 5 minutes." },
     ]

@@ -8,15 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MultiCurrencyWallet } from '@/components/dashboard/multi-currency-wallet'
 
+import { useTransactions } from '@/hooks/use-transactions'
 import { useLanguage } from '@/lib/language-context'
 
 export default function DashboardPage() {
     const { t } = useLanguage()
-    const mockRecentTransactions = [
-        { id: 1, recipient: 'John Doe', amount: 500, currency: 'NGN', status: 'completed', date: '2 hours ago' },
-        { id: 2, recipient: 'Jane Smith', amount: 1200, currency: 'INR', status: 'processing', date: '1 day ago' },
-        { id: 3, recipient: 'Bob Johnson', amount: 300, currency: 'PHP', status: 'completed', date: '3 days ago' },
-    ]
+    const { data: transactions, isLoading: isLoadingTransactions } = useTransactions()
+
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-red-950">
@@ -147,39 +145,46 @@ export default function DashboardPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="p-0">
-                                {mockRecentTransactions.map((tx, index) => (
-                                    <motion.div
-                                        key={tx.id}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.4 + index * 0.1 }}
-                                        className="flex items-center justify-between border-b border-gray-200 p-6 transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/50"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-950 dark:to-rose-950">
-                                                <TrendingUp className="h-6 w-6 text-[#c00101] dark:text-red-400" />
+                                {isLoadingTransactions ? (
+                                    <div className="p-6 text-center text-gray-500">Loading transactions...</div>
+                                ) : transactions?.length === 0 ? (
+                                    <div className="p-6 text-center text-gray-500">No recent transactions</div>
+                                ) : (
+                                    transactions?.map((tx, index) => (
+                                        <motion.div
+                                            key={tx.id}
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: 0.4 + index * 0.1 }}
+                                            className="flex items-center justify-between border-b border-gray-200 p-6 transition-colors last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/50"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-950 dark:to-rose-950">
+                                                    <TrendingUp className="h-6 w-6 text-[#c00101] dark:text-red-400" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-gray-900 dark:text-white">
+                                                        {tx.type === 'DEPOSIT' ? 'Deposit' : 'Transfer'}
+                                                    </p>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                                                        <Clock className="h-3 w-3" />
+                                                        {new Date(tx.createdAt).toLocaleDateString()}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="font-semibold text-gray-900 dark:text-white">{tx.recipient}</p>
-                                                <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                                                    <Clock className="h-3 w-3" />
-                                                    {tx.date}
+                                            <div className="text-right">
+                                                <p className="font-semibold text-gray-900 dark:text-white">
+                                                    {tx.amount} {tx.currency}
                                                 </p>
+                                                <Badge
+                                                    variant={tx.status === 'SUCCESS' ? 'default' : 'secondary'}
+                                                    className={tx.status === 'SUCCESS' ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-400'}
+                                                >
+                                                    {tx.status}
+                                                </Badge>
                                             </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-semibold text-gray-900 dark:text-white">
-                                                {tx.amount} {tx.currency}
-                                            </p>
-                                            <Badge
-                                                variant={tx.status === 'completed' ? 'default' : 'secondary'}
-                                                className={tx.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-400'}
-                                            >
-                                                {tx.status}
-                                            </Badge>
-                                        </div>
-                                    </motion.div>
-                                ))}
+                                        </motion.div>
+                                    )))}
                             </CardContent>
                         </Card>
                     </motion.div>

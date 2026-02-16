@@ -1,10 +1,13 @@
 package com.remnika.backend.config;
 
+import com.remnika.backend.entity.Session;
+import com.remnika.backend.repository.SessionRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
@@ -17,10 +20,17 @@ import java.io.IOException;
 import java.util.Collections;
 
 @Component
-@RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(JwtAuthFilter.class);
+
     private final JwtUtils jwtUtils;
+    private final SessionRepository sessionRepository;
+
+    public JwtAuthFilter(JwtUtils jwtUtils, SessionRepository sessionRepository) {
+        this.jwtUtils = jwtUtils;
+        this.sessionRepository = sessionRepository;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -30,27 +40,42 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         final String userEmail;
         final String jwtToken;
 
-        // If no Bearer token, skip this filter
+        // 1. Check if the header contains a Bearer token
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         jwtToken = authHeader.substring(7);
-        userEmail = jwtUtils.extractUsername(jwtToken); // Ensure this method exists in your JwtUtils
+
+        try {
+            // 2. Extract Username and handle Malformed/Expired tokens gracefully
+            userEmail = jwtUtils.extractUsername(jwtToken);
+        } catch (Exception e) {
+            log.error("Invalid JWT Token: {}", e.getMessage());
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            // Create a simple UserDetails for the context
-            UserDetails userDetails = new User(userEmail, "", Collections.emptyList());
 
-            // Validate the token
-            if (jwtUtils.isTokenValid(jwtToken, userEmail)) {
+            // 3. Process 1.2.4: Check D2 Session Store to see if token is still ACTIVE
+            boolean isSessionActive = sessionRepository.findByToken(jwtToken)
+                    .map(Session::isActive)
+                    .orElse(false);
+
+            if (isSessionActive && jwtUtils.isTokenValid(jwtToken, userEmail)) {
+                // 4. Create Security Context
+                UserDetails userDetails = new User(userEmail, "", Collections.emptyList());
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
+
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                // Final Step: Authenticate the user for this request
+                // 5. Authenticate the request
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
+                log.warn("Attempted access with inactive session for user: {}", userEmail);
             }
         }
         filterChain.doFilter(request, response);

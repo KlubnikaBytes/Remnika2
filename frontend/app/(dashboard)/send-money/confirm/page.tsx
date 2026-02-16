@@ -9,6 +9,8 @@ import { ArrowLeft, User, ChevronRight, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useSendMoneyStore } from '@/hooks/use-send-money-store'
+import { useSendMoney } from '@/hooks/use-transfers'
+import { useToast } from '@/components/ui/use-toast'
 
 export default function ConfirmTransferPage() {
     const router = useRouter()
@@ -24,14 +26,28 @@ export default function ConfirmTransferPage() {
         }
     }, [recipient, quote, router])
 
+    const { mutate: sendMoney, isPending } = useSendMoney()
+    const { toast } = useToast()
+
     const handleConfirm = () => {
-        if (!recipient) return
-        setIsLoading(true)
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false)
-            router.push('/send-money/success')
-        }, 2000)
+        if (!recipient || !quote) return
+
+        sendMoney({
+            recipientAccountNumber: recipient.accountNumber,
+            amount: quote.sourceAmount,
+            description: "Transfer to " + recipient.name
+        }, {
+            onSuccess: () => {
+                router.push('/send-money/success')
+            },
+            onError: (error: any) => {
+                toast({
+                    title: "Transfer Failed",
+                    description: error.response?.data?.message || "Something went wrong",
+                    variant: "destructive"
+                })
+            }
+        })
     }
 
     if (!recipient || !quote) {
@@ -108,10 +124,10 @@ export default function ConfirmTransferPage() {
                     {/* Confirm Button */}
                     <Button
                         className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 py-6 text-lg font-bold shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/40"
-                        disabled={!recipient || isLoading}
+                        disabled={!recipient || isPending}
                         onClick={handleConfirm}
                     >
-                        {isLoading ? (
+                        {isPending ? (
                             <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
                         ) : (
                             'Confirm & Send'
