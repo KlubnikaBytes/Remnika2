@@ -164,6 +164,30 @@ export const authService = {
         return response;
     },
 
+    async resetPassword(data: { otp: string; newPassword: string }) {
+        const { tempAuthData } = useAuthStore.getState();
+        if (!tempAuthData || (!tempAuthData.email && !tempAuthData.phoneNumber)) {
+            throw new Error('Session expired. Please try again.');
+        }
+
+        const identifier = tempAuthData.phoneNumber || tempAuthData.email!;
+        const method = tempAuthData.otpMethod || (tempAuthData.phoneNumber ? 'PHONE' : 'EMAIL');
+
+        // 1. Verify OTP
+        await this.forgotPasswordVerify({
+            identifier,
+            otp: data.otp,
+            method
+        });
+
+        // 2. Update Password
+        return await this.forgotPasswordUpdate({
+            identifier,
+            newPassword: data.newPassword,
+            method
+        });
+    },
+
     async logout() {
         try {
             await api.post('/api/auth/logout');
