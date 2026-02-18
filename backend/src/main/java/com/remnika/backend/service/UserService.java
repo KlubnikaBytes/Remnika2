@@ -31,6 +31,11 @@ public class UserService {
     private final SmsService smsService;
     private final JwtUtils jwtUtils;
 
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+    }
+
     // Process 2.1.2: Global Currency Mapping for all 17 countries
     private static final Map<String, String> COUNTRY_CURRENCY_MAP = Map.ofEntries(
             Map.entry("Ireland", "EUR"), Map.entry("Sweden", "SEK"), Map.entry("Denmark", "DKK"),

@@ -7,7 +7,29 @@ import { ArrowLeft, User, Bell, Shield, Globe2, Lock, Sliders } from 'lucide-rea
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
+import { useState } from 'react'
+import { complianceService, RiskScoreResponse } from '@/lib/services/compliance-service'
+import { Modal } from '@/components/ui/modal'
+import { Loader2, AlertTriangle, CheckCircle } from 'lucide-react'
+
 export default function SettingsPage() {
+    const [showRiskModal, setShowRiskModal] = useState(false)
+    const [riskData, setRiskData] = useState<RiskScoreResponse | null>(null)
+    const [isLoadingRisk, setIsLoadingRisk] = useState(false)
+
+    const handleCheckRisk = async () => {
+        setShowRiskModal(true)
+        setIsLoadingRisk(true)
+        try {
+            const data = await complianceService.getRiskScore()
+            setRiskData(data)
+        } catch (error) {
+            console.error("Failed to fetch risk score", error)
+        } finally {
+            setIsLoadingRisk(false)
+        }
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-red-950">
             {/* Animated Background */}
@@ -41,6 +63,22 @@ export default function SettingsPage() {
                 <div className="mx-auto max-w-4xl space-y-6">
                     {/* Menu Items */}
                     <div className="grid gap-4 md:grid-cols-2">
+                        {/* Compliance Check Card */}
+                        <Card
+                            className="h-full border-0 shadow-lg transition-transform hover:scale-[1.02] cursor-pointer"
+                            onClick={handleCheckRisk}
+                        >
+                            <CardContent className="flex items-center gap-4 p-6">
+                                <div className="rounded-full bg-blue-100 p-3 text-blue-600 dark:bg-blue-900/30">
+                                    <Shield className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white">Compliance Check</h3>
+                                    <p className="text-sm text-gray-500">View your risk score</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
                         <Link href="/kyc">
                             <Card className="h-full border-0 shadow-lg transition-transform hover:scale-[1.02]">
                                 <CardContent className="flex items-center gap-4 p-6">
@@ -129,6 +167,55 @@ export default function SettingsPage() {
                     </Card>
                 </div>
             </main>
+
+            {/* Risk Score Modal */}
+            <Modal
+                isOpen={showRiskModal}
+                onClose={() => setShowRiskModal(false)}
+                title="Compliance Risk Assessment"
+            >
+                {isLoadingRisk ? (
+                    <div className="flex flex-col items-center justify-center py-8">
+                        <Loader2 className="h-10 w-10 animate-spin text-[#c00101]" />
+                        <p className="mt-4 text-sm text-gray-500">Analyzing risk profile...</p>
+                    </div>
+                ) : riskData ? (
+                    <div className="space-y-6 text-center">
+                        <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full ${riskData.level === 'LOW' ? 'bg-green-100 text-green-600' :
+                                riskData.level === 'MEDIUM' ? 'bg-yellow-100 text-yellow-600' :
+                                    'bg-red-100 text-red-600'
+                            }`}>
+                            {riskData.level === 'LOW' ? <CheckCircle className="h-10 w-10" /> : <AlertTriangle className="h-10 w-10" />}
+                        </div>
+
+                        <div>
+                            <div className="text-4xl font-bold">{riskData.riskScore}</div>
+                            <div className={`mt-1 text-sm font-semibold tracking-wide ${riskData.level === 'LOW' ? 'text-green-600' :
+                                    riskData.level === 'MEDIUM' ? 'text-yellow-600' :
+                                        'text-red-600'
+                                }`}>
+                                {riskData.level} RISK
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg bg-gray-50 p-4 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                            <p>
+                                {riskData.level === 'LOW' ? "Your account is in good standing. No restrictions applied." :
+                                    riskData.level === 'MEDIUM' ? "Please complete verification to improve your score." :
+                                        "Your account activity has flagged high risk. Please contact support."}
+                            </p>
+                        </div>
+
+                        <Button className="w-full" onClick={() => setShowRiskModal(false)}>
+                            Done
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="text-center py-8 text-red-500">
+                        Failed to load risk data.
+                    </div>
+                )}
+            </Modal>
         </div>
     )
 }

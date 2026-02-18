@@ -13,29 +13,35 @@ import org.springframework.web.bind.annotation.*;
 public class TransferController {
 
     private final WalletService walletService;
+    private final com.remnika.backend.service.ComplianceService complianceService;
+    private final com.remnika.backend.service.UserService userService;
 
     @PostMapping("/send")
     public ResponseEntity<?> sendMoney(@RequestBody TransferRequest request) {
         try {
             String email = SecurityContextHolder.getContext().getAuthentication().getName();
-            
+
+            // Validate Compliance Limits
+            com.remnika.backend.entity.User user = userService.getUserByEmail(email);
+            complianceService.validateTransactionLimit(user, request.getAmount());
+
             // Debug logging
             System.out.println("Transfer Request Received:");
             System.out.println("  From: " + email);
             System.out.println("  To Account: " + request.getRecipientAccountNumber());
             System.out.println("  Amount: " + request.getAmount());
             System.out.println("  Description: " + request.getDescription());
-            
+
             walletService.transferFunds(email, request);
-            
+
             System.out.println("Transfer Successful!");
             return ResponseEntity.ok(java.util.Map.of("message", "Transfer successful!"));
-            
+
         } catch (RuntimeException e) {
             // Log the error for backend debugging
             System.err.println("Transfer Failed: " + e.getMessage());
             e.printStackTrace();
-            
+
             // Return structured error response for frontend
             return ResponseEntity.badRequest()
                     .body(java.util.Map.of("message", e.getMessage()));

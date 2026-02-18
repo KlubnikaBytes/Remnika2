@@ -10,7 +10,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useSendMoneyStore } from '@/hooks/use-send-money-store'
 import { useSendMoney } from '@/hooks/use-transfers'
+import { useValidateTransaction } from '@/hooks/use-compliance'
 import { useToast } from '@/components/ui/use-toast'
+import { AlertCircle } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 export default function ConfirmTransferPage() {
     const router = useRouter()
@@ -27,7 +30,24 @@ export default function ConfirmTransferPage() {
     }, [recipient, quote, router])
 
     const { mutate: sendMoney, isPending } = useSendMoney()
+    const { mutate: validateTransaction, isPending: isValidating } = useValidateTransaction()
     const { toast } = useToast()
+    const [validationError, setValidationError] = useState<string | null>(null)
+
+    // Validate on mount
+    useEffect(() => {
+        if (quote && recipient) {
+            validateTransaction({
+                amount: quote.sourceAmount,
+                recipientEmail: recipient.name // The API expects check against user but let's pass dummy or handle in backend
+            }, {
+                onError: (error: any) => {
+                    const msg = error.response?.data?.error || error.response?.data?.message || "Compliance check failed";
+                    setValidationError(msg);
+                }
+            })
+        }
+    }, [quote, recipient, validateTransaction])
 
     const handleConfirm = () => {
         if (!recipient || !quote) return
@@ -121,14 +141,27 @@ export default function ConfirmTransferPage() {
                         </div>
                     </div>
 
+                    {/* Validation Error Alert */}
+                    {validationError && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Transaction Blocked</AlertTitle>
+                            <AlertDescription>
+                                {validationError}
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                     {/* Confirm Button */}
                     <Button
                         className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 py-6 text-lg font-bold shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/40"
-                        disabled={!recipient || isPending}
+                        disabled={!recipient || isPending || isValidating || !!validationError}
                         onClick={handleConfirm}
                     >
                         {isPending ? (
                             <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        ) : isValidating ? (
+                            'Validating...'
                         ) : (
                             'Confirm & Send'
                         )}

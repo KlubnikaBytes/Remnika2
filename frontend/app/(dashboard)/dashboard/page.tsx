@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, Send, Users, History, Settings, TrendingUp, Clock, LogOut } from 'lucide-react'
+import { ArrowRight, Send, Users, History, Settings, TrendingUp, Clock, LogOut, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,10 +10,14 @@ import { MultiCurrencyWallet } from '@/components/dashboard/multi-currency-walle
 
 import { useTransactions } from '@/hooks/use-transactions'
 import { useLanguage } from '@/lib/language-context'
+import { useRiskScore } from '@/hooks/use-compliance'
 
 export default function DashboardPage() {
     const { t } = useLanguage()
     const { data: transactions, isLoading: isLoadingTransactions } = useTransactions()
+    const { data: riskData } = useRiskScore()
+    const riskScore = riskData?.riskScore || 0
+    const riskLevel = riskData?.level || 'LOW'
 
 
     return (
@@ -129,6 +133,40 @@ export default function DashboardPage() {
                                 </CardContent>
                             </Card>
                         </Link>
+                    </motion.div>
+
+                    {/* Compliance / Risk Score Card */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25 }}
+                        className="mb-8"
+                    >
+                        <Card className="border-0 bg-white/60 backdrop-blur-sm dark:bg-gray-900/60">
+                            <CardContent className="flex items-center justify-between p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className={`flex h-14 w-14 items-center justify-center rounded-xl shadow-lg ${riskLevel === 'LOW' ? 'bg-green-100 text-green-600 dark:bg-green-900/30' :
+                                            riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30' :
+                                                'bg-red-100 text-red-600 dark:bg-red-900/30'
+                                        }`}>
+                                        <Shield className="h-7 w-7" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-gray-900 dark:text-white">Account Safety Level</h4>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-lg font-bold ${riskLevel === 'LOW' ? 'text-green-600' :
+                                                    riskLevel === 'MEDIUM' ? 'text-yellow-600' :
+                                                        'text-red-600'
+                                                }`}>
+                                                {riskLevel} RISK
+                                            </span>
+                                            <span className="text-sm text-gray-500">({riskScore}/100)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <Button variant="outline" size="sm">View Details</Button>
+                            </CardContent>
+                        </Card>
                     </motion.div>
 
                     {/* Recent Transactions */}

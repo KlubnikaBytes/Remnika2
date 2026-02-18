@@ -33,6 +33,7 @@ export default function RootLayout({
             <div className="flex-1">{children}</div>
             <Footer />
           </div>
+          <Toaster />
         </Providers>
       </body>
     </html>
@@ -40,3 +41,4 @@ export default function RootLayout({
 }
 
 import { Footer } from "@/components/layout/footer";
+import { Toaster } from "@/components/ui/sonner";

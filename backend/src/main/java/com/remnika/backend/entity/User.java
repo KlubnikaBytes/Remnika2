@@ -9,7 +9,11 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User {
 
     @Id
@@ -17,7 +21,7 @@ public class User {
     private UUID id;
 
     @Column(nullable = false)
-    private String fullName;
+    private String fullName; // Added for Process 1.1
 
     @Column(unique = true, nullable = false)
     private String phoneNumber;
@@ -29,16 +33,26 @@ public class User {
     private String password;
 
     @Column(nullable = false)
-    private String country;
+    private String country; // Required for Wallet Currency assignment
 
-    private String deviceId;
+    private String deviceId; // Used for Session management in D2
 
-    // --- New Fields for OTP & Verification ---
+    // --- OTP & Verification (Process 1.2) ---
     private String otp;
     private LocalDateTime otpExpiry;
-    private boolean isVerified = false; // Default to false
 
+    @Builder.Default
+    @Column(columnDefinition = "boolean default false")
+    private boolean isVerified = false; // Ensures new users are unverified by default
+
+    // --- KYC Compliance (Process 3.1) ---
+    @Builder.Default
+    @Column(name = "kyc_status", columnDefinition = "varchar(255) default 'NOT_SUBMITTED'")
+    private String kycStatus = "NOT_SUBMITTED"; // Initial state for Process 3.1
+
+    // --- Auditing Timestamps ---
     @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp

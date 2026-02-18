@@ -6,11 +6,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID> {
-    boolean existsByEmail(String email);
-    boolean existsByPhoneNumber(String phoneNumber);
-
     Optional<User> findByEmail(String email);
 
-    // Add this NEW method for Phone Login
+    // Fixes the 6 errors in UserService
     Optional<User> findByPhoneNumber(String phoneNumber);
+    boolean existsByEmail(String email);
+    boolean existsByPhoneNumber(String phoneNumber);
 }

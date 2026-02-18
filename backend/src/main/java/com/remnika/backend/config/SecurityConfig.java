@@ -9,6 +9,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays; // Also needed for your Arrays.asList() calls
 
 @Configuration
 @EnableWebSecurity
@@ -26,31 +30,42 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // Disable CSRF for stateless APIs
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
+                .csrf(csrf -> csrf.disable()) // Keep disabled for APIs
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        // 1.1 & 1.2: Public endpoints for Registration and Login
-                        .requestMatchers("/api/auth/**").permitAll()
-
-                        // 1.3: Recipient endpoints require an active JWT session
-                        .requestMatchers("/api/recipients/**").authenticated()
-
-                        // All other requests must be authenticated
+                        .requestMatchers("/api/auth/**").permitAll() // Registration/Login/OTP/ForgotPW
+                        .requestMatchers("/api/wallet/**").authenticated() // Balance/History
+                        .requestMatchers("/api/payments/**").authenticated() // Deposit/Verify
+                        .requestMatchers("/api/recipients/**").authenticated() // Managing beneficiaries
+                        .requestMatchers("/api/compliance/**").authenticated() // Ensure this is here
+                        .requestMatchers("/api/transactions/**").authenticated()
+                        .requestMatchers("/api/kyc/**").authenticated() // KYC Submission & Status
                         .anyRequest().authenticated())
-                // Add the JWT filter before the standard Username/Password filter
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class); // Process 1.2.4
 
         return http.build();
     }
 
     @Bean
-    public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
-        org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
-        configuration.setAllowedOrigins(java.util.Arrays.asList("http://localhost:3000")); // Allow frontend
-        configuration.setAllowedMethods(java.util.Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(java.util.Arrays.asList("*"));
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // 1. Add all the URLs where your web apps will live
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000", // Your local React/Flutter dev
+                "http://localhost:5000", // Alternative dev port
+                "https://your-remnika-app.vercel.app" // Your production web URL
+        ));
+
+        // 2. Standard methods needed for a wallet app
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // 3. Allowed headers (Authorization is critical for your JWT)
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "X-Requested-With"));
+
         configuration.setAllowCredentials(true);
-        org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
